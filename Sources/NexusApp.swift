@@ -93,14 +93,23 @@ struct NexusSurface: View {
     @Bindable var workspace: Workspace
     let window: NSWindow
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    private static let brandLogo = Bundle.main.url(forResource: "Nexus-AppIcon", withExtension: "png")
+        .flatMap { NSImage(contentsOf: $0) }
     private let pages = [("switcher", "Switcher"), ("audio", "Audio"), ("color", "Camera / Color"),
                          ("labels", "Labels"), ("media", "Media")]
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("NEXUS").font(.system(size: 18, weight: .bold, design: .rounded)).tracking(3)
-                    Text("HARDWARE CONTROL").font(.system(size: 8, weight: .semibold)).tracking(1.6).foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    if let logo = Self.brandLogo {
+                        Image(nsImage: logo)
+                            .resizable().scaledToFit().frame(width: 42, height: 42)
+                            .accessibilityLabel("Nexus Signal N logo")
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("NEXUS").font(.system(size: 18, weight: .bold, design: .rounded)).tracking(3)
+                        Text("HARDWARE CONTROL").font(.system(size: 8, weight: .semibold)).tracking(1.6).foregroundStyle(.secondary)
+                    }
                 }
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {

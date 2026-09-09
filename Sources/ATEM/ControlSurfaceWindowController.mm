@@ -708,24 +708,23 @@ static NSUInteger MultiviewWindowFromTag(NSInteger tag)
     NSView *header = [[ATEMHeaderView alloc] initWithFrame:NSZeroRect];
     header.wantsLayer = YES;
 
-    NSString *logoPath = [NSBundle.mainBundle pathForResource:@"ATEMCNTRL-Logo" ofType:@"png"];
+    NSString *logoPath = [NSBundle.mainBundle pathForResource:@"Nexus-SignalN" ofType:@"png"];
     NSImageView *brandLogo = [[NSImageView alloc] initWithFrame:NSZeroRect];
     brandLogo.translatesAutoresizingMaskIntoConstraints = NO;
     brandLogo.image = [[NSImage alloc] initWithContentsOfFile:logoPath];
     brandLogo.imageScaling = NSImageScaleProportionallyUpOrDown;
     brandLogo.imageFrameStyle = NSImageFrameNone;
-    brandLogo.accessibilityLabel = @"ATEM CNTRL logo";
+    brandLogo.accessibilityLabel = @"Nexus Signal N logo";
     [header addSubview:brandLogo];
 
-    NSTextField *appTitle = Label(@"ATEM CNTRL", 20, NSFontWeightSemibold, ThemeText());
+    NSTextField *appTitle = Label(@"SWITCHER", 20, NSFontWeightSemibold, ThemeText());
     appTitle.translatesAutoresizingMaskIntoConstraints = NO;
-    NSMutableAttributedString *wordmark = [[NSMutableAttributedString alloc] initWithString:@"ATEM CNTRL"];
+    NSMutableAttributedString *wordmark = [[NSMutableAttributedString alloc] initWithString:@"SWITCHER"];
     [wordmark addAttributes:@{
         NSFontAttributeName: [NSFont systemFontOfSize:20 weight:NSFontWeightSemibold],
         NSKernAttributeName: @0.7,
         NSForegroundColorAttributeName: ThemeText(),
     } range:NSMakeRange(0, wordmark.length)];
-    [wordmark addAttribute:NSForegroundColorAttributeName value:ThemeCyan() range:NSMakeRange(5, 5)];
     appTitle.attributedStringValue = wordmark;
     [header addSubview:appTitle];
     NSTextField *subtitle = Label(@"LIVE SWITCHER CONSOLE", 9, NSFontWeightMedium, ThemeMuted());
