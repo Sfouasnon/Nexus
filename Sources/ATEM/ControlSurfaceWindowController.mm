@@ -708,15 +708,6 @@ static NSUInteger MultiviewWindowFromTag(NSInteger tag)
     NSView *header = [[ATEMHeaderView alloc] initWithFrame:NSZeroRect];
     header.wantsLayer = YES;
 
-    NSString *logoPath = [NSBundle.mainBundle pathForResource:@"Nexus-SignalN" ofType:@"png"];
-    NSImageView *brandLogo = [[NSImageView alloc] initWithFrame:NSZeroRect];
-    brandLogo.translatesAutoresizingMaskIntoConstraints = NO;
-    brandLogo.image = [[NSImage alloc] initWithContentsOfFile:logoPath];
-    brandLogo.imageScaling = NSImageScaleProportionallyUpOrDown;
-    brandLogo.imageFrameStyle = NSImageFrameNone;
-    brandLogo.accessibilityLabel = @"Nexus Signal N logo";
-    [header addSubview:brandLogo];
-
     NSTextField *appTitle = Label(@"SWITCHER", 20, NSFontWeightSemibold, ThemeText());
     appTitle.translatesAutoresizingMaskIntoConstraints = NO;
     NSMutableAttributedString *wordmark = [[NSMutableAttributedString alloc] initWithString:@"SWITCHER"];
@@ -843,11 +834,7 @@ static NSUInteger MultiviewWindowFromTag(NSInteger tag)
     [header addSubview:mediaButton];
 
     [NSLayoutConstraint activateConstraints:@[
-        [brandLogo.leadingAnchor constraintEqualToAnchor:header.leadingAnchor constant:18],
-        [brandLogo.topAnchor constraintEqualToAnchor:header.topAnchor constant:10],
-        [brandLogo.widthAnchor constraintEqualToConstant:46],
-        [brandLogo.heightAnchor constraintEqualToConstant:46],
-        [appTitle.leadingAnchor constraintEqualToAnchor:brandLogo.trailingAnchor constant:8],
+        [appTitle.leadingAnchor constraintEqualToAnchor:header.leadingAnchor constant:22],
         [appTitle.topAnchor constraintEqualToAnchor:header.topAnchor constant:11],
         [subtitle.leadingAnchor constraintEqualToAnchor:appTitle.leadingAnchor],
         [subtitle.topAnchor constraintEqualToAnchor:appTitle.bottomAnchor constant:0],

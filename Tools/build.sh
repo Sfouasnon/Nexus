@@ -20,7 +20,7 @@ xcrun clang++ -std=c++17 -fobjc-arc -fblocks -Wno-deprecated-declarations -arch 
     -framework Cocoa -framework CoreFoundation -o "$APP/Helpers/ATEMCameraHelper"
 cp Resources/Info.plist "$APP/Info.plist"
 cp Resources/Nexus.icns "$APP/Resources/"
-cp Resources/Brand/Nexus-AppIcon.png Resources/Brand/Nexus-SignalN.png "$APP/Resources/"
+cp Resources/Brand/Nexus-AppIcon.png "$APP/Resources/"
 codesign --force --sign - "$APP/Helpers/ATEMCameraHelper"
 codesign --force --deep --sign - build/Nexus.app
 codesign --verify --deep --strict build/Nexus.app

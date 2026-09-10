@@ -224,6 +224,10 @@ final class NexusApp: NSObject, NSApplicationDelegate {
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = ProcessInfo.processInfo.arguments
+        if let iconURL = Bundle.main.url(forResource: "Nexus", withExtension: "icns"),
+           let icon = NSImage(contentsOf: iconURL) {
+            NSApp.applicationIconImage = icon
+        }
         workspace = Workspace(demo: args.contains("--demo"))
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1380, height: 940),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
