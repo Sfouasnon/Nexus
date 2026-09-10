@@ -13,11 +13,12 @@
 @property NSMutableDictionary<NSString *, NSView *> *views;
 @end
 @implementation NexusBridge
-- (instancetype)initWithDemo:(BOOL)demo {
+- (instancetype)initWithDemo:(BOOL)demo identifier:(NSString *)identifier {
     if ((self = [super init])) {
         _controllers = @[[ATEMController new], [ATEMController new]];
         _panels = [NSMutableDictionary new]; _views = [NSMutableDictionary new];
-        ControlSurfaceWindowController *console = [[ControlSurfaceWindowController alloc] initWithControllers:_controllers];
+        ControlSurfaceWindowController *console = [[ControlSurfaceWindowController alloc]
+            initWithControllers:_controllers defaultsNamespace:identifier];
         __weak NexusBridge *weakSelf = self;
         console.featureActionHandler = ^(NSString *feature, NSUInteger session) {
             if ([feature isEqualToString:@"hyperdeck"]) {
@@ -48,8 +49,11 @@
     // All AppKit field editing and dialogs must address the actual host window.
     panel.window = window;
     NSSegmentedControl *selector = [panel valueForKey:@"sessionSelector"];
-    selector.enabled = [feature isEqualToString:@"hyperdeck"];
-    selector.toolTip = selector.enabled ? @"ATEM managing these HyperDecks" : @"Choose the hardware tab above to change ATEM";
+    // Each Nexus hardware tab owns one ATEM. Keep the legacy two-session
+    // selector visible for layout compatibility, but prevent it from reaching
+    // the unused compatibility controller.
+    selector.enabled = NO;
+    selector.toolTip = @"Choose the hardware tab above to change ATEM";
     return self.views[feature];
 }
 - (NSString *)status:(NSUInteger)session {

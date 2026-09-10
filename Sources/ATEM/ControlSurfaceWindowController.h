@@ -9,6 +9,8 @@ NS_ASSUME_NONNULL_BEGIN
                                                                      NSUInteger sessionIndex);
 @property(nonatomic, readonly) NSUInteger activeSessionIndex;
 - (instancetype)initWithControllers:(NSArray<ATEMController *> *)controllers;
+- (instancetype)initWithControllers:(NSArray<ATEMController *> *)controllers
+                   defaultsNamespace:(NSString *)defaultsNamespace;
 - (void)scrollMultiviewIntoView;
 - (void)selectSessionIndex:(NSUInteger)index;
 - (instancetype)initWithWindow:(nullable NSWindow *)window NS_UNAVAILABLE;

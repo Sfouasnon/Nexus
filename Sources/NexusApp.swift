@@ -2,6 +2,39 @@ import AppKit
 import SwiftUI
 import Observation
 
+enum HardwareKind: String, CaseIterable {
+    case atem = "ATEM"
+    case videohub = "Videohub"
+    case hyperdeck = "HyperDeck"
+
+    var icon: String {
+        switch self {
+        case .atem: "slider.horizontal.3"
+        case .videohub: "square.grid.3x3"
+        case .hyperdeck: "record.circle"
+        }
+    }
+}
+
+@MainActor @Observable
+final class ATEMSession: Identifiable {
+    let id: String
+    var name: String { didSet { defaults.set(name, forKey: "name") } }
+    var page = "switcher"
+    let bridge: NexusBridge
+    private let defaults: UserDefaults
+
+    init(id: String, number: Int, demo: Bool) {
+        self.id = id
+        defaults = UserDefaults(suiteName: "com.local.nexus-control.atem.\(id)")!
+        name = defaults.string(forKey: "name") ?? "ATEM \(number)"
+        bridge = NexusBridge(demo: demo, identifier: id)
+        bridge.featureHandler = { [weak self] feature, _ in self?.page = feature }
+    }
+
+    var status: String { bridge.status(0) }
+}
+
 @MainActor @Observable
 final class RouterSession: Identifiable {
     let id: String
@@ -27,38 +60,75 @@ final class RouterSession: Identifiable {
 
 @MainActor @Observable
 final class Workspace {
-    let atem: NexusBridge
     let demo: Bool
+    var atems: [ATEMSession] = []
     var routers: [RouterSession] = []
-    var selection = "atem-0"
-    var atemPages = ["switcher", "switcher"]
+    var hyperdecks: [DirectHyperDeckStore] = []
+    var selection = ""
     var settings = false
-    var status = ["Offline", "Offline"]
+    var refreshToken = 0
     let customizations: CustomizationStore
     let salvos: SalvoStore
 
     init(demo: Bool) {
         self.demo = demo
-        atem = NexusBridge(demo: demo)
         customizations = CustomizationStore()
         salvos = SalvoStore()
-        let ids = UserDefaults.standard.stringArray(forKey: "nexus.routers") ?? ["primary"]
-        routers = ids.enumerated().map { RouterSession(id: $0.element, number: $0.offset + 1,
+
+        let atemIDs = UserDefaults.standard.stringArray(forKey: "nexus.atems") ?? ["primary", "secondary"]
+        migrateLegacyATEMAddresses(to: atemIDs)
+        atems = atemIDs.enumerated().map { ATEMSession(id: $0.element, number: $0.offset + 1, demo: demo) }
+
+        let routerIDs = UserDefaults.standard.stringArray(forKey: "nexus.routers") ?? ["primary"]
+        routers = routerIDs.enumerated().map { RouterSession(id: $0.element, number: $0.offset + 1,
             demo: demo, customizations: customizations, salvos: salvos) }
-        atem.featureHandler = { [weak self] feature, session in
-            guard let self else { return }
-            self.selection = feature == "hyperdeck" ? "hyperdeck" : "atem-\(session)"
-            if feature != "hyperdeck" { self.atemPages[Int(session)] = feature }
+
+        let hyperDeckIDs = UserDefaults.standard.stringArray(forKey: "nexus.hyperdecks") ?? []
+        hyperdecks = hyperDeckIDs.enumerated().map {
+            DirectHyperDeckStore(id: $0.element, number: $0.offset + 1, demo: demo)
         }
-        refresh()
+        selection = atems.first.map { "atem:\($0.id)" }
+            ?? routers.first.map { "videohub:\($0.id)" }
+            ?? hyperdecks.first.map { "hyperdeck:\($0.id)" } ?? ""
     }
-    func refresh() { status = [atem.status(0), atem.status(1)] }
+
+    func refresh() { refreshToken &+= 1 }
+
+    func addHardware(_ kind: HardwareKind) {
+        let id = UUID().uuidString
+        switch kind {
+        case .atem:
+            let device = ATEMSession(id: id, number: atems.count + 1, demo: demo)
+            atems.append(device)
+            UserDefaults.standard.set(atems.map(\.id), forKey: "nexus.atems")
+            selection = "atem:\(id)"
+        case .videohub:
+            let device = RouterSession(id: id, number: routers.count + 1,
+                demo: demo, customizations: customizations, salvos: salvos)
+            routers.append(device)
+            UserDefaults.standard.set(routers.map(\.id), forKey: "nexus.routers")
+            selection = "videohub:\(id)"
+        case .hyperdeck:
+            let device = DirectHyperDeckStore(id: id, number: hyperdecks.count + 1, demo: demo)
+            hyperdecks.append(device)
+            UserDefaults.standard.set(hyperdecks.map(\.id), forKey: "nexus.hyperdecks")
+            selection = "hyperdeck:\(id)"
+        }
+    }
+
     func addRouter() {
-        let router = RouterSession(id: UUID().uuidString, number: routers.count + 1,
-            demo: demo, customizations: customizations, salvos: salvos)
-        routers.append(router)
-        UserDefaults.standard.set(routers.map(\.id), forKey: "nexus.routers")
-        selection = router.id
+        addHardware(.videohub)
+    }
+
+    private func migrateLegacyATEMAddresses(to ids: [String]) {
+        let defaults = UserDefaults.standard
+        for (index, id) in ids.prefix(2).enumerated() {
+            let destination = "nexus.atem.\(id).0.address"
+            guard defaults.string(forKey: destination) == nil else { continue }
+            if let address = defaults.string(forKey: "lastSwitcherAddress.\(index)"), !address.isEmpty {
+                defaults.set(address, forKey: destination)
+            }
+        }
     }
 }
 
@@ -96,8 +166,9 @@ struct NexusSurface: View {
     private static let brandLogo = Bundle.main.url(forResource: "Nexus-AppIcon", withExtension: "png")
         .flatMap { NSImage(contentsOf: $0) }
     private let pages = [("switcher", "Switcher"), ("audio", "Audio"), ("color", "Camera / Color"),
-                         ("labels", "Labels"), ("media", "Media")]
+                         ("labels", "Labels"), ("media", "Media"), ("hyperdeck", "HyperDecks")]
     var body: some View {
+        let _ = workspace.refreshToken
         VStack(spacing: 0) {
             HStack(spacing: 20) {
                 HStack(spacing: 8) {
@@ -113,25 +184,38 @@ struct NexusSurface: View {
                 }
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
-                        hardwareTab("ATEM A", id: "atem-0", icon: "slider.horizontal.3", status: workspace.status[0])
-                        hardwareTab("ATEM B", id: "atem-1", icon: "slider.horizontal.3", status: workspace.status[1])
+                        ForEach(workspace.atems) { atem in
+                            hardwareTab(atem.name, id: "atem:\(atem.id)", icon: HardwareKind.atem.icon,
+                                status: atem.status)
+                        }
                         ForEach(workspace.routers) { router in
-                            hardwareTab(router.name, id: router.id, icon: "square.grid.3x3",
+                            hardwareTab(router.name, id: "videohub:\(router.id)", icon: HardwareKind.videohub.icon,
                                 status: workspace.demo ? "Demo" : router.store.connectionState.label)
                         }
-                        hardwareTab("HyperDecks", id: "hyperdeck", icon: "record.circle", status: "Via ATEM")
+                        ForEach(workspace.hyperdecks) { deck in
+                            hardwareTab(deck.name, id: "hyperdeck:\(deck.id)", icon: HardwareKind.hyperdeck.icon,
+                                status: deck.connectionState.rawValue)
+                        }
                     }
                 }
-                Button { workspace.addRouter() } label: {
-                    Label("Add Videohub", systemImage: "plus")
+                Menu {
+                    ForEach(HardwareKind.allCases, id: \.self) { kind in
+                        Button { workspace.addHardware(kind) } label: {
+                            Label(kind.rawValue, systemImage: kind.icon)
+                        }
+                    }
+                } label: {
+                    Label("Add Hardware", systemImage: "plus")
                         .font(.system(size: 11, weight: .semibold))
                         .padding(.horizontal, 4)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
-                .help("Add another independently connected Smart Videohub")
-                .accessibilityLabel("Add Videohub")
-                .accessibilityIdentifier("add-videohub-button")
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .help("Add an ATEM, Videohub, or standalone HyperDeck")
+                .accessibilityLabel("Add Hardware")
+                .accessibilityIdentifier("add-hardware-menu")
                 if workspace.demo { Text("DEMO").font(.caption.bold()).foregroundStyle(.orange) }
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
@@ -139,26 +223,21 @@ struct NexusSurface: View {
             Divider()
             ZStack {
             VStack(spacing: 0) {
-            if workspace.selection.hasPrefix("atem-") {
-                let index = workspace.selection == "atem-0" ? 0 : 1
+            if let atem = selectedATEM {
                 HStack(spacing: 8) {
                     ForEach(pages, id: \.0) { page in
-                        Button(page.1) { workspace.atemPages[index] = page.0 }
+                        Button(page.1) { atem.page = page.0 }
                             .buttonStyle(.bordered)
-                            .tint(workspace.atemPages[index] == page.0 ? .cyan : .gray)
+                            .tint(atem.page == page.0 ? .cyan : .gray)
                     }
                     Spacer()
-                    Text("ATEM \(index == 0 ? "A" : "B")").font(.caption.bold()).foregroundStyle(.secondary)
+                    TextField("Device name", text: Binding(get: { atem.name }, set: { atem.name = $0 }))
+                        .textFieldStyle(.plain).font(.caption.bold()).multilineTextAlignment(.trailing).frame(width: 180)
                 }.padding(10)
-                ATEMPanel(bridge: workspace.atem, feature: workspace.atemPages[index], session: index, window: window)
-                    .id("atem-panel")
-            } else if workspace.selection == "hyperdeck" {
-                HStack {
-                    Text("HyperDeck transport · managed through ATEM A or B")
-                    Spacer()
-                    Text("Standalone connections are not yet available").foregroundStyle(.secondary)
-                }.font(.caption).padding(12)
-                ATEMPanel(bridge: workspace.atem, feature: "hyperdeck", session: 0, window: window)
+                ATEMPanel(bridge: atem.bridge, feature: atem.page, session: 0, window: window)
+                    .id("atem-panel-\(atem.id)")
+            } else if let deck = selectedHyperDeck {
+                DirectHyperDeckView(store: deck)
             }
             }
                 // Keep each hosting subtree alive so search, page and routing selection survive tab changes.
@@ -173,15 +252,15 @@ struct NexusSurface: View {
                             }.padding(12)
                             ContentView(store: router.store)
                         }
-                        .opacity(workspace.selection == router.id ? 1 : 0)
-                        .disabled(workspace.selection != router.id)
-                        .allowsHitTesting(workspace.selection == router.id)
-                        .accessibilityHidden(workspace.selection != router.id)
+                        .opacity(workspace.selection == "videohub:\(router.id)" ? 1 : 0)
+                        .disabled(workspace.selection != "videohub:\(router.id)")
+                        .allowsHitTesting(workspace.selection == "videohub:\(router.id)")
+                        .accessibilityHidden(workspace.selection != "videohub:\(router.id)")
                     }
                 }
-                .opacity(workspace.routers.contains(where: { $0.id == workspace.selection }) ? 1 : 0)
-                .allowsHitTesting(workspace.routers.contains(where: { $0.id == workspace.selection }))
-                .accessibilityHidden(!workspace.routers.contains(where: { $0.id == workspace.selection }))
+                .opacity(selectedRouter != nil ? 1 : 0)
+                .allowsHitTesting(selectedRouter != nil)
+                .accessibilityHidden(selectedRouter == nil)
             }
         }
         .frame(minWidth: 1180, minHeight: 800)
@@ -189,13 +268,28 @@ struct NexusSurface: View {
         .preferredColorScheme(.dark)
         .onReceive(timer) { _ in workspace.refresh() }
         .sheet(isPresented: $workspace.settings) {
-            if let router = workspace.routers.first(where: { $0.id == workspace.selection }) {
+            if let router = selectedRouter {
                 VStack {
                     HStack { Text("\(router.name) Settings").font(.headline); Spacer(); Button("Done") { workspace.settings = false } }.padding()
                     SettingsView(store: router.store, bridge: router.bridge)
                 }.frame(minWidth: 720, minHeight: 550).preferredColorScheme(.dark)
             }
         }
+    }
+
+    private var selectedATEM: ATEMSession? {
+        guard workspace.selection.hasPrefix("atem:") else { return nil }
+        return workspace.atems.first { workspace.selection == "atem:\($0.id)" }
+    }
+
+    private var selectedRouter: RouterSession? {
+        guard workspace.selection.hasPrefix("videohub:") else { return nil }
+        return workspace.routers.first { workspace.selection == "videohub:\($0.id)" }
+    }
+
+    private var selectedHyperDeck: DirectHyperDeckStore? {
+        guard workspace.selection.hasPrefix("hyperdeck:") else { return nil }
+        return workspace.hyperdecks.first { workspace.selection == "hyperdeck:\($0.id)" }
     }
     private func hardwareTab(_ name: String, id: String, icon: String, status: String) -> some View {
         Button {
@@ -249,7 +343,13 @@ final class NexusApp: NSObject, NSApplicationDelegate {
         installMenu()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        if let i = args.firstIndex(of: "--preview-tab"), args.indices.contains(i + 1) { workspace.selection = args[i + 1] }
+        if let i = args.firstIndex(of: "--preview-tab"), args.indices.contains(i + 1) {
+            let requested = args[i + 1]
+            if requested == "primary" { workspace.selection = "videohub:primary" }
+            else if requested == "hyperdeck", let deck = workspace.hyperdecks.first {
+                workspace.selection = "hyperdeck:\(deck.id)"
+            } else { workspace.selection = requested }
+        }
         if let i = args.firstIndex(of: "--capture-ui"), args.indices.contains(i + 1) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [self] in
                 let view = window.contentView!
@@ -273,7 +373,8 @@ final class NexusApp: NSObject, NSApplicationDelegate {
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
     func applicationWillTerminate(_ notification: Notification) {
-        workspace.atem.shutdown()
+        for atem in workspace.atems { atem.bridge.shutdown() }
         for router in workspace.routers { router.store.disconnect() }
+        for deck in workspace.hyperdecks { deck.disconnect() }
     }
 }

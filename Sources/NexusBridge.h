@@ -2,7 +2,7 @@
 NS_ASSUME_NONNULL_BEGIN
 @interface NexusBridge : NSObject
 @property(nonatomic, copy, nullable) void (^featureHandler)(NSString *, NSUInteger);
-- (instancetype)initWithDemo:(BOOL)demo;
+- (instancetype)initWithDemo:(BOOL)demo identifier:(NSString *)identifier;
 - (NSView *)surface:(NSString *)feature session:(NSUInteger)session window:(NSWindow *)window;
 - (NSString *)status:(NSUInteger)session;
 - (void)shutdown;

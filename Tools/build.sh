@@ -13,8 +13,8 @@ for source in Sources/ATEM/*Controller.mm Sources/NexusBridge.mm "$INCLUDE/BMDSw
 done
 xcrun swiftc -parse-as-library -swift-version 5 -D DEBUG -import-objc-header Sources/NexusBridge.h \
     -module-name Nexus -target "$arch-apple-macos14.0" \
-    Sources/NexusApp.swift $(find Sources/Videohub -name '*.swift' -print) build/objects/*.o \
-    -framework Cocoa -framework CoreFoundation -lc++ -o "$APP/MacOS/Nexus"
+    Sources/NexusApp.swift $(find Sources/Videohub Sources/HyperDeck -name '*.swift' -print) build/objects/*.o \
+    -framework Cocoa -framework CoreFoundation -framework Network -lc++ -o "$APP/MacOS/Nexus"
 xcrun clang++ -std=c++17 -fobjc-arc -fblocks -Wno-deprecated-declarations -arch "$arch" -mmacosx-version-min=14.0 \
     -I"$INCLUDE" -ISources/ATEM Sources/ATEM/CameraHelperMain.mm "$INCLUDE/BMDSwitcherAPIDispatch.cpp" \
     -framework Cocoa -framework CoreFoundation -o "$APP/Helpers/ATEMCameraHelper"

@@ -343,6 +343,7 @@ static NSUInteger MultiviewWindowFromTag(NSInteger tag)
 
 @interface ControlSurfaceWindowController () <NSTextFieldDelegate>
 @property(nonatomic, copy) NSArray<ATEMController *> *controllers;
+@property(nonatomic, copy) NSString *defaultsNamespace;
 @property(nonatomic, strong) NSMutableArray<ATEMState *> *sessionStates;
 @property(nonatomic) NSUInteger activeSessionIndex;
 @property(nonatomic, strong) ATEMState *state;
@@ -423,6 +424,12 @@ static NSUInteger MultiviewWindowFromTag(NSInteger tag)
 
 - (instancetype)initWithControllers:(NSArray<ATEMController *> *)controllers
 {
+    return [self initWithControllers:controllers defaultsNamespace:@"legacy"];
+}
+
+- (instancetype)initWithControllers:(NSArray<ATEMController *> *)controllers
+                   defaultsNamespace:(NSString *)defaultsNamespace
+{
     NSParameterAssert(controllers.count == 2);
     NSRect frame = NSMakeRect(0, 0, 1320, 860);
     NSWindow *window = [[NSWindow alloc] initWithContentRect:frame
@@ -446,6 +453,7 @@ static NSUInteger MultiviewWindowFromTag(NSInteger tag)
     self = [super initWithWindow:window];
     if (self) {
         _controllers = [controllers copy];
+        _defaultsNamespace = [defaultsNamespace copy];
         _sessionStates = [NSMutableArray arrayWithCapacity:controllers.count];
         for (ATEMController *controller in controllers)
             [_sessionStates addObject:controller.latestState];
@@ -491,15 +499,14 @@ static NSUInteger MultiviewWindowFromTag(NSInteger tag)
 
 - (NSString *)addressDefaultsKeyForSession:(NSUInteger)index
 {
-    return [NSString stringWithFormat:@"lastSwitcherAddress.%lu", (unsigned long)index];
+    return [NSString stringWithFormat:@"nexus.atem.%@.%lu.address",
+            self.defaultsNamespace, (unsigned long)index];
 }
 
 - (NSString *)savedAddressForSession:(NSUInteger)index
 {
     NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
     NSString *address = [defaults stringForKey:[self addressDefaultsKeyForSession:index]];
-    if (address.length == 0 && index == 0)
-        address = [defaults stringForKey:@"lastSwitcherAddress"];
     return address ?: @"";
 }
 
