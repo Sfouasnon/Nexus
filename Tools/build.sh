@@ -21,6 +21,15 @@ xcrun clang++ -std=c++17 -fobjc-arc -fblocks -Wno-deprecated-declarations -arch 
 cp Resources/Info.plist "$APP/Info.plist"
 cp Resources/Nexus.icns "$APP/Resources/"
 cp Resources/Brand/Nexus-AppIcon.png "$APP/Resources/"
+ASSET_CATALOG="build/NexusAssets.xcassets"
+APP_ICON_SET="$ASSET_CATALOG/AppIcon.appiconset"
+mkdir -p "$APP_ICON_SET"
+iconutil -c iconset Resources/Nexus.icns -o build/Nexus.iconset
+cp build/Nexus.iconset/*.png "$APP_ICON_SET/"
+cp Resources/AppIconContents.json "$APP_ICON_SET/Contents.json"
+xcrun actool "$ASSET_CATALOG" --compile "$APP/Resources" --platform macosx \
+    --minimum-deployment-target 14.0 --app-icon AppIcon \
+    --output-partial-info-plist build/AppIcon.plist
 codesign --force --sign - "$APP/Helpers/ATEMCameraHelper"
 codesign --force --deep --sign - build/Nexus.app
 codesign --verify --deep --strict build/Nexus.app
