@@ -7,7 +7,7 @@ A native macOS working surface combining the ATEM CNTRL and Videohub CNTRL proto
 Build with `./Tools/build.sh`, then open `build/Nexus.app`.
 
 - **ATEM A / ATEM B:** independent switcher connections with live status in the top tabs. Enter the address and Connect on the Switcher page. Switching tabs keeps both sessions running. Audio, Camera / Color, Labels, and Media open within the same window.
-- **Videohub:** the existing source → destination → TAKE workflow, routing, macros, discovery, customizations, and settings. Use **+** to add another independent router tab. Edit the tab name above its routing surface. Addresses, names, and tab inventory persist. New routers wait for an explicit Connect; automatic reconnect is available in Router Settings.
+- **Videohub:** the existing source → destination → TAKE workflow, routing, macros, discovery, customizations, and settings. Use **Add Videohub** to create another independent router tab. Each tab has its own address, discovery, connection, settings, and editable name. Names and tab inventory persist across app launches. New routers wait for an explicit Connect; automatic reconnect is available in Router Settings.
 - **HyperDecks:** the existing ATEM-managed transport controls. Choose the managing ATEM A/B inside this tab. This version does not connect directly to standalone HyperDecks.
 - **Demo:** run `build/Nexus.app/Contents/MacOS/Nexus --demo` to explore synthetic ATEM and Videohub hardware without transmitting hardware commands.
 

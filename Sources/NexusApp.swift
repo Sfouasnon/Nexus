@@ -122,8 +122,16 @@ struct NexusSurface: View {
                         hardwareTab("HyperDecks", id: "hyperdeck", icon: "record.circle", status: "Via ATEM")
                     }
                 }
-                Button { workspace.addRouter() } label: { Image(systemName: "plus") }
-                    .help("Add a Videohub tab").accessibilityLabel("Add Videohub")
+                Button { workspace.addRouter() } label: {
+                    Label("Add Videohub", systemImage: "plus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .padding(.horizontal, 4)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .help("Add another independently connected Smart Videohub")
+                .accessibilityLabel("Add Videohub")
+                .accessibilityIdentifier("add-videohub-button")
                 if workspace.demo { Text("DEMO").font(.caption.bold()).foregroundStyle(.orange) }
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
