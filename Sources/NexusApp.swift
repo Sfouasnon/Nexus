@@ -116,6 +116,58 @@ final class Workspace {
         }
     }
 
+    var selectedHardwareName: String {
+        if let id = selection.removingPrefix("atem:"),
+           let device = atems.first(where: { $0.id == id }) { return device.name }
+        if let id = selection.removingPrefix("videohub:"),
+           let device = routers.first(where: { $0.id == id }) { return device.name }
+        if let id = selection.removingPrefix("hyperdeck:"),
+           let device = hyperdecks.first(where: { $0.id == id }) { return device.name }
+        return "Hardware"
+    }
+
+    func removeSelectedHardware() {
+        let selectionsBeforeRemoval = hardwareSelections
+        let removedIndex = selectionsBeforeRemoval.firstIndex(of: selection) ?? 0
+
+        if let id = selection.removingPrefix("atem:"),
+           let index = atems.firstIndex(where: { $0.id == id }) {
+            atems[index].bridge.shutdown()
+            atems.remove(at: index)
+            clearDefaults(suite: "com.local.nexus-control.atem.\(id)")
+            UserDefaults.standard.removeObject(forKey: "nexus.atem.\(id).0.address")
+            UserDefaults.standard.removeObject(forKey: "nexus.atem.\(id).1.address")
+            UserDefaults.standard.set(atems.map(\.id), forKey: "nexus.atems")
+        } else if let id = selection.removingPrefix("videohub:"),
+                  let index = routers.firstIndex(where: { $0.id == id }) {
+            routers[index].store.disconnect()
+            routers[index].bridge.shutdown()
+            routers.remove(at: index)
+            clearDefaults(suite: "com.local.nexus-control.router.\(id)")
+            UserDefaults.standard.set(routers.map(\.id), forKey: "nexus.routers")
+            settings = false
+        } else if let id = selection.removingPrefix("hyperdeck:"),
+                  let index = hyperdecks.firstIndex(where: { $0.id == id }) {
+            hyperdecks[index].disconnect()
+            hyperdecks.remove(at: index)
+            clearDefaults(suite: "com.local.nexus-control.hyperdeck.\(id)")
+            UserDefaults.standard.set(hyperdecks.map(\.id), forKey: "nexus.hyperdecks")
+        }
+
+        let remaining = hardwareSelections
+        selection = remaining.isEmpty ? "" : remaining[min(removedIndex, remaining.count - 1)]
+    }
+
+    private var hardwareSelections: [String] {
+        atems.map { "atem:\($0.id)" }
+            + routers.map { "videohub:\($0.id)" }
+            + hyperdecks.map { "hyperdeck:\($0.id)" }
+    }
+
+    private func clearDefaults(suite: String) {
+        UserDefaults.standard.removePersistentDomain(forName: suite)
+    }
+
     func addRouter() {
         addHardware(.videohub)
     }
@@ -129,6 +181,13 @@ final class Workspace {
                 defaults.set(address, forKey: destination)
             }
         }
+    }
+}
+
+private extension String {
+    func removingPrefix(_ prefix: String) -> String? {
+        guard hasPrefix(prefix) else { return nil }
+        return String(dropFirst(prefix.count))
     }
 }
 
@@ -162,6 +221,7 @@ struct ATEMPanel: NSViewRepresentable {
 struct NexusSurface: View {
     @Bindable var workspace: Workspace
     let window: NSWindow
+    @State private var showingRemoveConfirmation = false
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private static let brandLogo = Bundle.main.url(forResource: "Nexus-AppIcon", withExtension: "png")
         .flatMap { NSImage(contentsOf: $0) }
@@ -216,6 +276,17 @@ struct NexusSurface: View {
                 .help("Add an ATEM, Videohub, or standalone HyperDeck")
                 .accessibilityLabel("Add Hardware")
                 .accessibilityIdentifier("add-hardware-menu")
+                Button {
+                    showingRemoveConfirmation = true
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .help("Remove the selected hardware connection")
+                .accessibilityLabel("Remove Hardware")
+                .accessibilityIdentifier("remove-hardware-button")
+                .disabled(workspace.selection.isEmpty)
                 if workspace.demo { Text("DEMO").font(.caption.bold()).foregroundStyle(.orange) }
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
@@ -238,6 +309,12 @@ struct NexusSurface: View {
                     .id("atem-panel-\(atem.id)")
             } else if let deck = selectedHyperDeck {
                 DirectHyperDeckView(store: deck)
+            } else if workspace.selection.isEmpty {
+                ContentUnavailableView {
+                    Label("No Hardware", systemImage: "cable.connector.slash")
+                } description: {
+                    Text("Use Add Hardware to create an ATEM, Videohub, or HyperDeck connection.")
+                }
             }
             }
                 // Keep each hosting subtree alive so search, page and routing selection survive tab changes.
@@ -274,6 +351,16 @@ struct NexusSurface: View {
                     SettingsView(store: router.store, bridge: router.bridge)
                 }.frame(minWidth: 720, minHeight: 550).preferredColorScheme(.dark)
             }
+        }
+        .confirmationDialog("Remove \(workspace.selectedHardwareName)?",
+                            isPresented: $showingRemoveConfirmation,
+                            titleVisibility: .visible) {
+            Button("Remove \(workspace.selectedHardwareName)", role: .destructive) {
+                workspace.removeSelectedHardware()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This disconnects the device and deletes its saved Nexus connection settings.")
         }
     }
 
@@ -326,10 +413,6 @@ final class NexusApp: NSObject, NSApplicationDelegate {
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = ProcessInfo.processInfo.arguments
-        if let iconURL = Bundle.main.url(forResource: "Nexus", withExtension: "icns"),
-           let icon = NSImage(contentsOf: iconURL) {
-            NSApp.applicationIconImage = icon
-        }
         workspace = Workspace(demo: args.contains("--demo"))
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1380, height: 940),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)

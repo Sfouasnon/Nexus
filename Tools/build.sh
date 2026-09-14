@@ -3,7 +3,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 SDK_ROOT="/Applications/Blackmagic ATEM Switchers/Developer SDK/Mac OS X"
 INCLUDE="$SDK_ROOT/include"
-APP="build/Nexus.app/Contents"
+STAGING_ROOT="build/.Nexus-build"
+APP="$STAGING_ROOT/Nexus.app/Contents"
+rm -rf "$STAGING_ROOT"
 mkdir -p build/objects "$APP/MacOS" "$APP/Resources" "$APP/Helpers"
 python3 Tools/generate_video_modes.py --header "$INCLUDE/BMDSwitcherAPI.h" --output Sources/ATEM/ATEMVideoModeTable.inc
 arch="$(uname -m)"
@@ -31,6 +33,9 @@ xcrun actool "$ASSET_CATALOG" --compile "$APP/Resources" --platform macosx \
     --minimum-deployment-target 14.0 --app-icon AppIcon \
     --output-partial-info-plist build/AppIcon.plist
 codesign --force --sign - "$APP/Helpers/ATEMCameraHelper"
-codesign --force --deep --sign - build/Nexus.app
-codesign --verify --deep --strict build/Nexus.app
+codesign --force --deep --sign - "$STAGING_ROOT/Nexus.app"
+codesign --verify --deep --strict "$STAGING_ROOT/Nexus.app"
 plutil -lint "$APP/Info.plist"
+rm -rf build/Nexus.app
+mv "$STAGING_ROOT/Nexus.app" build/Nexus.app
+touch build/Nexus.app

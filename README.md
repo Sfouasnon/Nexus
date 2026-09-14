@@ -10,6 +10,7 @@ Build with `./Tools/build.sh`, then open `build/Nexus.app`.
 - **Videohub:** add as many independent router tabs as needed. Each keeps its own address, discovery, connection, settings, and editable name while retaining the existing source → destination → TAKE workflow, routing, macros, and customizations.
 - **HyperDeck:** add standalone recorders by IP address. Nexus connects directly over Blackmagic's Ethernet protocol and provides live transport status, timecode, slot, speed, play, stop, record, and previous/next clip controls.
 - **Add Hardware:** use the menu at the right of the hardware tabs to add an ATEM, Videohub, or standalone HyperDeck. The complete device inventory and names persist across app launches.
+- **Remove Hardware:** select a device, click the trash button beside Add Hardware, and confirm. Nexus disconnects it and deletes that device's saved connection settings.
 - **Demo:** run `build/Nexus.app/Contents/MacOS/Nexus --demo` to explore synthetic ATEM and Videohub hardware without transmitting hardware commands.
 
 The shared window does not disconnect hardware when navigating away. Closing the last window quits the app and disconnects sessions. Camera control retains the original isolated helper process and starts only when explicitly requested.

@@ -85,6 +85,10 @@ final class ControlBridge {
         startServer()
     }
 
+    func shutdown() {
+        stopServer()
+    }
+
     // MARK: - Server lifecycle
 
     private func startServer() {
